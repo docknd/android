@@ -39,20 +39,14 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Install Android SDK and NDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          if [[ ! -x "$SDKMANAGER" ]]; then
-            echo "Android SDK manager not found at: $SDKMANAGER"
-            find "$ANDROID_HOME/cmdline-tools" -maxdepth 3 -name sdkmanager -type f || true
-            exit 1
-          fi
-          yes | "$SDKMANAGER" --licenses
-          "$SDKMANAGER" --install \
-            "platforms;android-37" \
-            "ndk;27.0.12077973"
+      - name: Set up Android SDK command-line tools
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: "12266719"
+          packages: |
+            platforms;android-37
+            ndk;27.0.12077973
+          accept-android-sdk-licenses: true
 
       - name: Install Rust and Android targets
         shell: bash
