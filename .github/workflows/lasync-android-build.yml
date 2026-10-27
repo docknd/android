@@ -39,15 +39,12 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android SDK and NDK
         run: |
+          yes | sdkmanager --licenses
           sdkmanager --install \
             "platforms;android-37" \
             "ndk;27.0.12077973"
-          yes | sdkmanager --licenses
 
       - name: Install Rust and Android targets
         shell: bash
