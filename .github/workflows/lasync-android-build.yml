@@ -1,1 +1,90 @@
 
+name: Lasync Android Debug Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/lasync-android-build.yml"
+      - "build.gradle"
+      - "gradle/**"
+      - "gradlew"
+      - "gradle.properties"
+      - "settings.gradle"
+      - "scripts/**"
+      - "jni/**"
+      - "src/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lasync-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-foss-debug:
+    name: Build FOSS debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out source and native core
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK and NDK
+        run: |
+          sdkmanager --install \
+            "platforms;android-37" \
+            "ndk;27.0.12077973"
+          yes | sdkmanager --licenses
+
+      - name: Install Rust and Android targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUST_VERSION="$(cat scripts/rust-toolchain)"
+          rustup toolchain install "$RUST_VERSION" --profile minimal
+          rustup target add \
+            armv7-linux-androideabi \
+            aarch64-linux-android \
+            i686-linux-android \
+            x86_64-linux-android \
+            --toolchain "$RUST_VERSION"
+
+      - name: Cache Rust build dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            jni/deltachat-core-rust
+
+      - name: Configure Android NDK
+        run: |
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.0.12077973" \
+            >> "$GITHUB_ENV"
+
+      - name: Build native Rust core
+        run: scripts/ndk-make.sh
+
+      - name: Build FOSS debug APK
+        run: ./gradlew --no-daemon assembleFossDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lasync-foss-debug-apk
+          path: build/outputs/apk/foss/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
